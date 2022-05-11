@@ -1,14 +1,15 @@
 import os, psutil, platform, json, argparse, requests, time, logging, systemd
 from datetime import datetime, timedelta
 from systemd.journal import JournaldLogHandler
-
+wkdir = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger(__name__)
 journald_handler = JournaldLogHandler()
 journald_handler.setFormatter(logging.Formatter(
     '[%(levelname)s] %(message)s'
 ))
-logger.setLevel(logging.INFO)
 logger.addHandler(journald_handler)
+logger.setLevel(logging.INFO)
+
 def get_cpu_count():
     try:
         cpu_count = psutil.cpu_count()
@@ -92,7 +93,7 @@ def get_network_stats():
         }
     return network_stats
 
-def main():
+def main(poll_int):
     operating_system = platform.platform()
     system_name = platform.node()
     cpu_count = get_cpu_count()
@@ -108,29 +109,38 @@ def main():
         "memory_stats": memory_stats,
         "disk_stats": disk_stats,
         "network_stats": network_stats,
-        "datetime": datetime.now()
+        "datetime": datetime.now(),
+        "polling_interval": poll_int
     }
     file_name = f"{system_name}_metrics.json"
-    if not os.path.exists("./metric_data"):
+    if not os.path.exists(f"{wkdir}/metric_data"):
         try:
-            os.mkdir("./metric_data")
+            os.mkdir(f"{wkdir}/metric_data")
         except:
             logger.warning("Failed to create metric_data directory. Please verify permissions.")
-    with open(f'./metric_data/{file_name}', 'w') as f:
+    with open(f'{wkdir}/metric_data/{file_name}', 'w') as f:
         json.dump(data,f,indent=4,default=str)
         f.close()
     logger.info(f"{file_name} created in metric_data. Pending offload.")
-    return file_name
-def connection_manager(mgmt_server, token):
+    return (file_name, system_name)
+def connection_manager(mgmt_hostname, poll_int):
     logger.info("Connection to mgmt_server initiated...")
-    file_name = main()
+    file_name = main(poll_int)
+    headers = {'accept':'application/json'}
+    filepath = f"{wkdir}/metric_data/{file_name[0]}"
+    metric_file = {'metric_file': open(filepath, 'rb')}
+    offload = requests.post(f"{mgmt_hostname}/api/metrics/metric_upload", files=metric_file, headers=headers, verify=f"{wkdir}/certificates/bundle.crt")
+    if "202" in offload.text:
+        logger.info("Offload Successful. Sleeping....")
+    else:
+        logger.warning("Problem Offloading. Please Verifiy Certificates, Network, and Permissions! Sleeping...")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Launch Metric Collector")
-    parser.add_argument('--mgmt_hostname', type=str)
-    parser.add_argument('--token', type=str)
+    parser.add_argument('--mgmt_hostname', type=str, default="https://localhost")
+    parser.add_argument("--poll_int", type=int, default=60)
     args = parser.parse_args()
     while True:
-        logger.info("Metric Collector Started!")
-        connection_manager(args.mgmt_hostname, args.token)
-        time.sleep(60)
+        logger.info(f"Metric Collector Started! MGMT Server: {args.mgmt_hostname}, Offload set to {args.poll_int} seconds.")
+        connection_manager(args.mgmt_hostname, args.poll_int)
+        time.sleep(args.poll_int)

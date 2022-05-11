@@ -7,7 +7,7 @@ After=network.target
 Type=idle
 Restart=on-failure
 User=root
-ExecStart=/opt/metric_collector/venv/bin/python3 /opt/metric_collector/metric_collector.py --mgmt_hostname=${COLLECTOR} --token=${TOKEN}
+ExecStart=/opt/metric_collector/venv/bin/python3 /opt/metric_collector/metric_collector.py --mgmt_hostname=MGMTSERVER --poll_int=POLL_INT
 Environment="PATH=/opt/metric_collector/venv/bin"
 
 [Install]
