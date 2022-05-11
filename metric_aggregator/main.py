@@ -12,7 +12,7 @@ from routers import authentication, metric_storage, client_registration
 config = Config()
 config.certfile = f"{ca_file_path}/ca.crt"
 config.keyfile = f"{ca_file_path}/private/ca_key.pem"
-config.bind = ["0.0.0.0:443", "0.0.0.0:80"]
+config.bind = ["192.168.1.23:443"]
 
 agg = FastAPI(dependencies=[Depends(cert_metric_store), Depends(user_store)])
 agg.include_router(authentication.auth)

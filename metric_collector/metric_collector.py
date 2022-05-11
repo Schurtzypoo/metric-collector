@@ -1,13 +1,13 @@
-import os, psutil, platform, json, argparse, requests, time, logging, systemd
+import os, psutil, platform, json, argparse, requests, time, logging#, systemd
 from datetime import datetime, timedelta
-from systemd.journal import JournaldLogHandler
+#from systemd.journal import JournaldLogHandler
 wkdir = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger(__name__)
-journald_handler = JournaldLogHandler()
-journald_handler.setFormatter(logging.Formatter(
-    '[%(levelname)s] %(message)s'
-))
-logger.addHandler(journald_handler)
+#journald_handler = JournaldLogHandler()
+#journald_handler.setFormatter(logging.Formatter(
+#     '[%(levelname)s] %(message)s'
+# ))
+#logger.addHandler(journald_handler)
 logger.setLevel(logging.INFO)
 
 def get_cpu_count():
@@ -84,7 +84,7 @@ def get_network_stats():
             "addresses": addresses,
             "address_families": families,
             "speed": nic_info[nic].speed,
-            "MTU": nic_info[nic].speed,
+            "MTU": nic_info[nic].mtu,
             "duplex": nic_info[nic].duplex,
             "packets_in": traffic_stats[nic].packets_recv,
             "packets_out": traffic_stats[nic].packets_sent,
@@ -129,7 +129,7 @@ def connection_manager(mgmt_hostname, poll_int):
     headers = {'accept':'application/json'}
     filepath = f"{wkdir}/metric_data/{file_name[0]}"
     metric_file = {'metric_file': open(filepath, 'rb')}
-    offload = requests.post(f"{mgmt_hostname}/api/metrics/metric_upload", files=metric_file, headers=headers, verify=f"{wkdir}/certificates/bundle.crt")
+    offload = requests.post(f"{mgmt_hostname}/api/metrics/metric_upload", files=metric_file, headers=headers, cert=(f"{wkdir}/certificates/{file_name[1]}.crt", f"{wkdir}/certificates/{file_name[1]}.pem"), verify=f"{wkdir}/certificates/bundle.crt")
     if "202" in offload.text:
         logger.info("Offload Successful. Sleeping....")
     else:

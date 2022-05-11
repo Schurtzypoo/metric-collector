@@ -11,9 +11,9 @@ client_metric_store = f"{wkdir}/metric_store"
 async def cert_metric_store():
     if not os.path.exists(ca_file_path):
         os.mkdir(ca_file_path)
-        ca = CertificateAuthority(ca_storage = ca_file_path, common_name=ca_name)
+        ca = CertificateAuthority(ca_storage = ca_file_path, common_name=ca_name, dns_names = [ca_name, "192.168.1.23"])
     else:
-        ca = CertificateAuthority(ca_storage = ca_file_path, common_name=ca_name)
+        ca = CertificateAuthority(ca_storage = ca_file_path, common_name=ca_name, dns_names = [ca_name, "192.168.1.23"])
     if not os.path.exists(data_store):
         os.mkdir(data_store)
     if not os.path.exists(f'{data_store}/clients.db'):
