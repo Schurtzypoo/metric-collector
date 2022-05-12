@@ -54,12 +54,12 @@ python3 -m venv /opt/metric_collector/venv
 source /opt/metric_collector/venv/bin/activate
 pip3 install --upgrade pip
 pip3 install --upgrade setuptools
-pip3 install psutil argparse requests datetime systemd python-multipart
+pip3 install psutil argparse requests datetime systemd python-multipart requests-toolbelt
 cp metric_collector.py /opt/metric_collector/
 cp registration.py /opt/metric_collector
 python3 /opt/metric_collector/registration.py --mgmt_hostname="$HOST" --poll_int=$POLL --token="$TOKEN"
 cp requirements/metric_collector.service /etc/systemd/system/metric_collector.service
-sed -i "s/MGMTSERVER/$HOST/" /etc/systemd/system/metric_collector.service
+sed -i "s|MGMTSERVER|$HOST|" /etc/systemd/system/metric_collector.service
 sed -i "s/POLL_INT/$POLL/" /etc/systemd/system/metric_collector.service
 chmod 0664 /etc/systemd/system/metric_collector.service
 systemctl daemon-reload

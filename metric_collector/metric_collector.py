@@ -1,13 +1,14 @@
-import os, psutil, platform, json, argparse, requests, time, logging#, systemd
+import os, psutil, platform, json, argparse, requests, time, logging, systemd
 from datetime import datetime, timedelta
-#from systemd.journal import JournaldLogHandler
+from requests_toolbelt.adapters import host_header_ssl
+from systemd.journal import JournaldLogHandler
 wkdir = os.path.dirname(os.path.abspath(__file__))
 logger = logging.getLogger(__name__)
-#journald_handler = JournaldLogHandler()
-#journald_handler.setFormatter(logging.Formatter(
-#     '[%(levelname)s] %(message)s'
-# ))
-#logger.addHandler(journald_handler)
+journald_handler = JournaldLogHandler()
+journald_handler.setFormatter(logging.Formatter(
+    '[%(levelname)s] %(message)s'
+))
+logger.addHandler(journald_handler)
 logger.setLevel(logging.INFO)
 
 def get_cpu_count():
@@ -126,18 +127,26 @@ def main(poll_int):
 def connection_manager(mgmt_hostname, poll_int):
     logger.info("Connection to mgmt_server initiated...")
     file_name = main(poll_int)
-    headers = {'accept':'application/json'}
+    headers = {'accept':'application/json', 'Host': "rmacbookpro.local"}
     filepath = f"{wkdir}/metric_data/{file_name[0]}"
     metric_file = {'metric_file': open(filepath, 'rb')}
-    offload = requests.post(f"{mgmt_hostname}/api/metrics/metric_upload", files=metric_file, headers=headers, cert=(f"{wkdir}/certificates/{file_name[1]}.crt", f"{wkdir}/certificates/{file_name[1]}.pem"), verify=f"{wkdir}/certificates/bundle.crt")
-    if "202" in offload.text:
-        logger.info("Offload Successful. Sleeping....")
-    else:
-        logger.warning("Problem Offloading. Please Verifiy Certificates, Network, and Permissions! Sleeping...")
+    s = requests.session()
+    s.mount('https://', host_header_ssl.HostHeaderSSLAdapter())
+    try:
+        offload = s.post(f"{mgmt_hostname}/api/metrics/metric_upload", files=metric_file, headers=headers, cert=(f"{wkdir}/certificates/{file_name[1]}.crt", f"{wkdir}/certificates/{file_name[1]}.pem"), verify=f"{wkdir}/certificates/bundle.crt")
+        if offload.status_code == 202:
+            logger.info("Offload Successful. Sleeping....")
+            logger.info(f"{offload.text} - {offload.status_code}")
+        else:
+            logger.warning("Problem Offloading. Please Verifiy Certificates, Network, and Permissions! Sleeping...")
+            logger.warning(f"{offload.text} - {offload.status_code}")
+    except:
+            logger.warning("Connection Error. Please Verifiy Certificates, Network, and Permissions! Sleeping...")
+            # logger.warning(f"{offload.text} - {offload.status_code}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Launch Metric Collector")
-    parser.add_argument('--mgmt_hostname', type=str, default="https://localhost")
+    parser.add_argument('--mgmt_hostname', type=str, default="https://192.168.1.23")
     parser.add_argument("--poll_int", type=int, default=60)
     args = parser.parse_args()
     while True:

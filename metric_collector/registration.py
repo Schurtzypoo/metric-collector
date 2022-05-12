@@ -1,9 +1,9 @@
 from metric_collector import main as mcm
 import requests, os, argparse, shutil
 parser = argparse.ArgumentParser()
-parser.add_argument('--mgmt_hostname', type=str, default='https://localhost')
+parser.add_argument('--mgmt_hostname', type=str, default='https://192.168.1.23')
 parser.add_argument("--poll_int", type=int, default=60)
-parser.add_argument("--token", type=str, default="6oQWDrvk-FTAjMUe3WXl46-TptNJzzSaMdbfCDCFcBk")
+parser.add_argument("--token", type=str, default="5d4hv29ETEqEV4qLrvowSvHvCUkasUo3OiSa-hHa9h4")
 args = parser.parse_args()
 file_name = mcm(args.poll_int)[0]
 wkdir = os.path.dirname(os.path.abspath(__file__))
