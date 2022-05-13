@@ -9,6 +9,7 @@ metric = APIRouter(
     tags = ["metrics"]
 )
 
+
 @metric.post("/metric_upload")
 async def offload_metric_files(metric_file: UploadFile):
     contents = await metric_file.read()
@@ -16,10 +17,22 @@ async def offload_metric_files(metric_file: UploadFile):
         f.write(contents)
         f.close()
     await metric_file.close()
-    return JSONResponse(
-        status_code=status.HTTP_202_ACCEPTED,
-        content={"message":"offload accepted"}
-    )
+    record = await dependencies.store_metrics(f"{dependencies.client_metric_store}/{metric_file.filename}")
+    if record == "NR":
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={'Server Message': f"This device is not registered. Record: {record}"}
+        )
+    elif record == "ACCEPTED":
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content={"Server Message": f"Metric Offload Processed Successfully. Record: {record}"}
+        )
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"Server Message": f"Error in subprocess! Record: {record}"}
+        )
 
 
 # async def upload_client_metrics(metric_file: UploadFile = File(...)):

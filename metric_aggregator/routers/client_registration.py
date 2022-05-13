@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Response, UploadFile, status
 from fastapi.responses import JSONResponse, FileResponse
-import os, sqlite3, json, shutil
+import os, sqlite3, json, shutil, datetime
+from datetime import datetime
 import dependencies
 
 curr_token = ()
@@ -23,21 +24,32 @@ async def issue_client_cert(filename):
     f = open(f"{dependencies.client_metric_store}/{filename}")
     jfile = json.load(f)
     f.close()
+    clients_con = sqlite3.connect(f"{dependencies.data_store}/clients.db")
+    cur = clients_con.cursor()
+    registered_clients = cur.execute(f'''SELECT * FROM registered_clients WHERE hostname=?''', (jfile["system_name"],)).fetchone()
+    if registered_clients == None:
+        cur.execute(f'''INSERT INTO registered_clients VALUES (?, ?)''', (jfile["system_name"], datetime.now()))
+    else:
+        cur.execute(f'''UPDATE registered_clients SET date_registered=? WHERE hostname=?''', (datetime.now(), jfile["system_name"]))
+    clients_con.commit()
+    clients_con.close()
     cert_path = f"{dependencies.ca_file_path}/certs/{jfile['system_name']}"
-    ca = dependencies.CertificateAuthority(ca_storage = dependencies.ca_file_path, common_name=dependencies.ca_name)
-    host_cert = ca.issue_certificate(hostname=jfile["system_name"])
-    with open(f'{cert_path}/bundle.crt', 'wb') as bundle:
-        ca_cert = open(f'{dependencies.ca_file_path}/ca.crt', 'rb')
-        client_cert = open(f"{cert_path}/{jfile['system_name']}.crt", "rb")
-        data = ca_cert.read()
-        data2 = client_cert.read()
-        bundle.write(data2)
-        bundle.write(data)
-        ca_cert.close()
-        client_cert.close()
-        bundle.close()
     zfilename = f"{jfile['system_name']}"
-    shutil.make_archive(f'{cert_path}/{zfilename}', 'tar', cert_path)
+    if not os.path.exists(cert_path):
+        ca = dependencies.CertificateAuthority(ca_storage = dependencies.ca_file_path, common_name=dependencies.ca_name)
+        ca.issue_certificate(hostname=jfile["system_name"])
+        with open(f'{cert_path}/bundle.crt', 'wb') as bundle:
+            ca_cert = open(f'{dependencies.ca_file_path}/ca.crt', 'rb')
+            client_cert = open(f"{cert_path}/{jfile['system_name']}.crt", "rb")
+            data = ca_cert.read()
+            data2 = client_cert.read()
+            bundle.write(data2)
+            bundle.write(data)
+            ca_cert.close()
+            client_cert.close()
+            bundle.close()
+        
+        shutil.make_archive(f'{cert_path}/{zfilename}', 'tar', cert_path)
     return [f'{cert_path}/{zfilename}.tar', f'{zfilename}.tar']
 
 

@@ -56,6 +56,7 @@ def get_disk_stats():
         try:
             usage = psutil.disk_usage(d.mountpoint)
             disk_stats[d.mountpoint] = {
+                "disk_device": d.device,
                 "disk_mountpoint": d.mountpoint,
                 "disk_fstype": d.fstype,
                 "disk_size": usage.total/1024/1024/1024,
@@ -78,12 +79,12 @@ def get_network_stats():
         logger.warning("Failed to collect Nic info! Error in func get_network_stats in metric_collector.py")
         return 'Error'
     for nic in nics:
-        addresses = [a.address for a in nics[nic]]
-        families = [f.family for f in nics[nic]]
+        address = [a.address for a in nics[nic]]
+        family = [f.family for f in nics[nic]]
         network_stats[nic] = {
             "interface": nic,
-            "addresses": addresses,
-            "address_families": families,
+            "address": address[0],
+            "address_family": family[0],
             "speed": nic_info[nic].speed,
             "MTU": nic_info[nic].mtu,
             "duplex": nic_info[nic].duplex,
@@ -135,14 +136,16 @@ def connection_manager(mgmt_hostname, poll_int):
     try:
         offload = s.post(f"{mgmt_hostname}/api/metrics/metric_upload", files=metric_file, headers=headers, cert=(f"{wkdir}/certificates/{file_name[1]}.crt", f"{wkdir}/certificates/{file_name[1]}.pem"), verify=f"{wkdir}/certificates/bundle.crt")
         if offload.status_code == 202:
-            logger.info("Offload Successful. Sleeping....")
+            logger.info("Offload Successful.")
             logger.info(f"{offload.text} - {offload.status_code}")
-        else:
-            logger.warning("Problem Offloading. Please Verifiy Certificates, Network, and Permissions! Sleeping...")
+        elif offload.status_code == 401:
+            logger.warning("Agent must be registered with Management Server before Offload is Authorized!")
+            logger.warning(f"{offload.text} - {offload.status_code}")
+        elif offload.status_code == 500:
+            logger.warning("Error encountered storing offloaded metrics. Notify Admin of error message.")
             logger.warning(f"{offload.text} - {offload.status_code}")
     except:
             logger.warning("Connection Error. Please Verifiy Certificates, Network, and Permissions! Sleeping...")
-            # logger.warning(f"{offload.text} - {offload.status_code}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Launch Metric Collector")
