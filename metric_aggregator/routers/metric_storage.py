@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, Response, UploadFile, status
 from fastapi.responses import JSONResponse, FileResponse
 import os, sqlite3, json, shutil
-import dependencies
+from startup import cert_metric_store, client_metric_store
+from dependencies import store_metrics
 
 metric = APIRouter(
-    dependencies=[Depends(dependencies.cert_metric_store)],
+    dependencies=[Depends(cert_metric_store)],
     prefix="/api/metrics",
     tags = ["metrics"]
 )
@@ -13,11 +14,11 @@ metric = APIRouter(
 @metric.post("/metric_upload")
 async def offload_metric_files(metric_file: UploadFile):
     contents = await metric_file.read()
-    with open(f"{dependencies.client_metric_store}/{metric_file.filename}", "wb") as f:
+    with open(f"{client_metric_store}/{metric_file.filename}", "wb") as f:
         f.write(contents)
         f.close()
     await metric_file.close()
-    record = await dependencies.store_metrics(f"{dependencies.client_metric_store}/{metric_file.filename}")
+    record = await store_metrics(f"{client_metric_store}/{metric_file.filename}")
     if record == "NR":
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
