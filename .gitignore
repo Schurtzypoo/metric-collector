@@ -9,3 +9,4 @@ certificates/
 *.csr
 __pycache__
 .DS_Store
+js_learning/
