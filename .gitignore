@@ -10,3 +10,4 @@ certificates/
 __pycache__
 .DS_Store
 js_learning/
+ui/
